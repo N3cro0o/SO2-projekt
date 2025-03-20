@@ -4,10 +4,13 @@
 #include <vector>
 #include <random>
 #include <mutex>
+#include <semaphore>
+#include <atomic>
 #include <chrono>
 
 // Const
-const int threads = 5;
+const int simulation_time = 120;
+const int threads = 100;
 
 // State enum
 enum philoState {
@@ -21,6 +24,8 @@ enum philoState {
 std::vector<std::thread> thread_vec;
 std::mutex sticks[threads];
 std::mutex co_mutex;
+std::atomic_bool thread_check = true;
+std::counting_semaphore<threads> sem(threads / 3);
 
 std::random_device rd;
 std::mt19937 gen;
@@ -34,7 +39,7 @@ std::vector<unsigned long long> stick_bounce;
 void sleep(philoState* state, int id) {
 	int t = 10 + sleep_dist(gen);
 	co_mutex.lock();
-	std::cout << id << " - Sleep for " << t<< std::endl;
+	std::cout << id << " - Sleep for " << t << std::endl;
 	co_mutex.unlock();
 	std::this_thread::sleep_for(std::chrono::seconds(t));
 	*state = philoState::LookForSticks;
@@ -65,10 +70,11 @@ void getSticks(philoState* state, int id) {
 			if (!checkR) {
 				sticks[right].unlock();
 			}
-			stick_bounce[id]++;
 			co_mutex.lock();
-			std::cout << id << " - Bounce\n";
+			std::cout << id << " - Bounce " << ++stick_bounce[id] << "\n";
 			co_mutex.unlock();
+			// Let first third of bounced philosophers
+			sem.acquire();
 			std::this_thread::sleep_for(std::chrono::seconds(3));
 		}
 	}
@@ -80,6 +86,9 @@ void dropSticks(philoState* state, int id) {
 	int right = (id + 1) % threads;
 	sticks[left].unlock();
 	sticks[right].unlock();
+	// Let more to the table
+	sem.release();
+	*state = philoState::Sleep;
 }
 
 
@@ -87,18 +96,21 @@ void dropSticks(philoState* state, int id) {
 void philosopherLoop(const int id) {
 	srand(time(NULL));
 	philoState state = philoState::Sleep;
-	while (1)
+	while (thread_check)
 	{
 		sleep(&state, id);
 		getSticks(&state, id);
 		dropSticks(&state, id);
 	}
+	co_mutex.lock();
+	std::cout << id << " - FINISHED -----------\n";
+	co_mutex.unlock();
 }
 
-int main(int argc, char* argv[]) {
-
+int main() {
 	gen = std::mt19937(rd());
 	std::cout << "Philosophers: " << threads << std::endl;
+	thread_check.store(true);
 
 	// Start threads
 	thread_vec.resize(threads);
@@ -108,10 +120,28 @@ int main(int argc, char* argv[]) {
 	for (std::thread& thr : thread_vec) {
 		thr = std::thread(philosopherLoop, i++);
 	}
-	for (std::thread& thr : thread_vec) {
-		thr.join();
+	if (simulation_time == -1) {
+		for (std::thread& thr : thread_vec) {
+			thr.join();
+		}
 	}
+	else {
+		std::this_thread::sleep_for(std::chrono::seconds(simulation_time));
+		thread_check.store(false);
+		for (std::thread& thr : thread_vec) {
+			thr.join();
+		}
+	}
+	int avg = 0, min = INT32_MAX, max = 0;
 
-
+	for (int val : stick_bounce) {
+		avg += val;
+		if (min > val) min = val;
+		if (max < val) max = val;
+	}
+	avg /= threads;
+	co_mutex.lock();
+	std::cout << "Avg: " << avg << ", Min: " << min << ", Max: " << max << std::endl;
+	co_mutex.unlock();
 	return 0;
 }
