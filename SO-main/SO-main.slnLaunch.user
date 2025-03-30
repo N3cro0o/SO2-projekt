@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "Base",
+    "Projects": [
+      {
+        "Path": "SO-main.vcxproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "..\\SO-client\\SO-client.vcxproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

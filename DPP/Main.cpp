@@ -133,7 +133,7 @@ int main() {
 		}
 	}
 	int avg = 0, min = INT32_MAX, max = 0;
-
+	
 	for (int val : stick_bounce) {
 		avg += val;
 		if (min > val) min = val;
