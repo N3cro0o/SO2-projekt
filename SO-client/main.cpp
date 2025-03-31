@@ -37,7 +37,7 @@ int main() {
 		return 1;
 	}
 	std::cout << "Got address" << std::endl;
-	
+
 	// Socket
 	ptr = result;
 	connect_socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
@@ -68,20 +68,37 @@ int main() {
 	int recvbuflen = DEFAULT_BUFLEN;
 	int iResult;
 
-	std::cout << "Input message below.\nMessage: ";
-	std::getline(std::cin, in);
-	const char* sendbuf = in.c_str();
+	do {
+		std::cout << "\nInput message below.\nMessage: ";
+		std::getline(std::cin, in);
+		const char* sendbuf = in.c_str();
+		std::cout << sendbuf << std::endl;
 
-	// Send an initial buffer
-	iResult = send(connect_socket, sendbuf, (int)strlen(sendbuf), 0);
-	if (iResult == SOCKET_ERROR) {
-		std::cout << "Send failed: " << WSAGetLastError() << std::endl;
-		closesocket(connect_socket);
-		WSACleanup();
-		return 1;
-	}
+		// Send buffer
+		iResult = send(connect_socket, sendbuf, (int)strlen(sendbuf), 0);
+		if (iResult == SOCKET_ERROR) {
+			std::cout << "Send failed: " << WSAGetLastError() << std::endl;
+			closesocket(connect_socket);
+			WSACleanup();
+			return 1;
+		}
+		std::cout << "Bytes sent: " << iResult << std::endl;
 
-	std::cout << "Bytes sent: " << iResult << std::endl;
+		// Wait for echo
+		iResult = recv(connect_socket, recvbuf, recvbuflen, 0);
+		if (iResult > 0) {
+			std::cout << "Bytes recieved: " << iResult << std::endl;
+			std::cout << "Message: " << std::endl;
+			for (int i = 0; i < iResult; i++) {
+				std::cout << recvbuf[i];
+			}
+			std::cout << std::endl;
+		}
+		else if (iResult == 0)
+			std::cout << "Connection closed" << std::endl;
+		else
+			std::cout << "Connection failed: " << WSAGetLastError() << std::endl;
+	} while (in != "exit");
 
 	// shutdown the connection for sending since no more data will be sent
 	// the client can still use the ConnectSocket for receiving data
@@ -105,11 +122,9 @@ int main() {
 		else
 			std::cout << "Connection failed: " << WSAGetLastError() << std::endl;
 	} while (iResult > 0);
-	
+
 	// DC from client
 	closesocket(connect_socket);
 	WSACleanup();
-	// Wait for user input
-	char x = std::getchar();
 	return 0;
 }
