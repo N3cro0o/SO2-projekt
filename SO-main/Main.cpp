@@ -7,21 +7,26 @@
 
 #include<thread>
 #include<mutex>
+#include<atomic>
 
 #define SOCKET_PORT "9999"
-#define DEFAULT_BUFLEN 512
+#define DEFAULT_BUFLEN 1024
 #define MAX_CLIENT_SOCKETS 5
 
+#include"../common.h"
 #include"main.h"
 
 int sockets_count = 0;
 int socket_id = 0;
-SOCKET sockets[MAX_CLIENT_SOCKETS]{INVALID_SOCKET};
-bool sockets_is_used[MAX_CLIENT_SOCKETS]{false};
+SOCKET sockets[MAX_CLIENT_SOCKETS]{ INVALID_SOCKET };
+bool sockets_is_used[MAX_CLIENT_SOCKETS]{ false };
+std::vector<so::User> user_data_vec;
 
 std::mutex thread_mutex;
+std::atomic_bool server_loop = true;
 
 int thread_func(int socket_id, SOCKET* client_socket, int max_buffer);
+void thread_listen(SOCKET* server_socket);
 
 int main() {
 	SOCKET server_socket = INVALID_SOCKET;
@@ -78,6 +83,20 @@ int main() {
 
 	// Listen on a Server socket
 	std::cout << "Listening on " << SOCKET_PORT << " port" << std::endl;
+	std::cout << "------------------------------------------------------\n";
+	std::thread listen = std::thread(thread_listen, &server_socket);
+	listen.detach();
+
+	while (server_loop);
+
+	listen.~thread();
+	closesocket(server_socket);
+	WSACleanup();
+
+	return 0;
+}
+
+void thread_listen(SOCKET* server_socket) {
 	while (1) {
 		// Check for free sockets
 		socket_id = -1;
@@ -92,14 +111,14 @@ int main() {
 				sockets_count++;
 		}
 		std::cout << "ID: " << socket_id << " Count: " << sockets_count << std::endl;
-		if (listen(server_socket, SOMAXCONN) == SOCKET_ERROR) {
+		if (listen(*server_socket, SOMAXCONN) == SOCKET_ERROR) {
 			std::cout << "Listen failed with error: " << WSAGetLastError() << std::endl;
 			continue;
 		}
 
 		if (sockets_count < MAX_CLIENT_SOCKETS) {
 			// Accepting requests
-			sockets[socket_id] = accept(server_socket, NULL, NULL);
+			sockets[socket_id] = accept(*server_socket, NULL, NULL);
 			if (sockets[socket_id] == INVALID_SOCKET) {
 				std::cout << "Accept failed: " << WSAGetLastError() << std::endl;
 				closesocket(sockets[sockets_count]);
@@ -110,41 +129,42 @@ int main() {
 			std::thread x = std::thread(thread_func, socket_id, &sockets[socket_id], DEFAULT_BUFLEN);
 			sockets_is_used[socket_id] = true;
 			thread_mutex.unlock();
+			// Detach to run threads in parallel
 			x.detach();
-
-			//thread_sockets[thread_sockets.size() - 1].join();
-			//closesocket(server_socket);
 		}
 	}
-
-	closesocket(server_socket);
-	WSACleanup();
-
-	return 0;
 }
 
 int thread_func(int socket_id, SOCKET* client_socket, int max_buffer) {
 	// Let's talk
 	char recvbuf[DEFAULT_BUFLEN];
-	char sendbuf[DEFAULT_BUFLEN]{' '};
+	char sendbuf[DEFAULT_BUFLEN]{ ' ' };
 	int rec_result, send_result;
 	int recvbuflen = DEFAULT_BUFLEN;
 	int err;
 	do {
-		for (char &ch : recvbuf)
+		// Print saved users
+		for (int i = 0; i < user_data_vec.size(); i++) {
+			so::User target = user_data_vec[i];
+			so::print_user(&target);
+		}
+		for (char& ch : recvbuf)
 			ch = ' ';
 
 		rec_result = recv(*client_socket, recvbuf, recvbuflen, 0);
 		if (rec_result > 0) {
-			std::cout << "\nBytes recieved from " << socket_id << ": " << rec_result << std::endl;
+			//std::cout << "\nBytes recieved from " << socket_id << ": " << rec_result << std::endl;
 			std::cout << "Message: " << std::endl;
 			for (int i = 0; i < rec_result; i++) {
 				std::cout << recvbuf[i];
 			}std::cout << std::endl;
 
-			int sendbuflen = so::decode_signal(recvbuf, rec_result, sendbuf);
+			int sendbuflen = so::decode_signal(recvbuf, rec_result, sendbuf, &user_data_vec);
 			if (sendbuflen == -1) {
 				break;
+			}
+			if (sendbuflen == -9001) {
+				server_loop = false;
 			}
 			send_result = send(*client_socket, sendbuf, sendbuflen, 0);
 			if (send_result == SOCKET_ERROR) {

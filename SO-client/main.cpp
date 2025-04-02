@@ -5,8 +5,14 @@
 #include<stdio.h>
 #include<string>
 
+#include"../common.h"
+#include "menu.h"
+
 #define SOCKET_PORT "9999"
-#define DEFAULT_BUFLEN 512
+#define DEFAULT_BUFLEN 1024
+
+int controll_word = 0;
+so::User user_data;
 
 int main() {
 	SOCKET connect_socket = INVALID_SOCKET, user_accept = INVALID_SOCKET;
@@ -61,18 +67,20 @@ int main() {
 		WSACleanup();
 		return 1;
 	}
+	std::cout << "------------------------------------------------------\n";
 
 	// Communication
 	std::string in;
 	char recvbuf[DEFAULT_BUFLEN];
 	int recvbuflen = DEFAULT_BUFLEN;
 	int iResult;
-
 	do {
-		std::cout << "\nInput message below.\nMessage: ";
-		std::getline(std::cin, in);
+		// Get user input
+		controll_word = 0;
+		int sendbuflen = 0;
+		in = so::menu::menu_loop(&user_data, &controll_word);
+		so::print_user(&user_data);
 		const char* sendbuf = in.c_str();
-		std::cout << sendbuf << std::endl;
 
 		// Send buffer
 		iResult = send(connect_socket, sendbuf, (int)strlen(sendbuf), 0);
@@ -89,10 +97,38 @@ int main() {
 		if (iResult > 0) {
 			std::cout << "Bytes recieved: " << iResult << std::endl;
 			std::cout << "Message: " << std::endl;
+
+			// Check controll word
+			// Login check
+			if ((controll_word & (1 << 0) >> 0) == 1) {
+				char success = recvbuf[0];
+				if (success == 't') {
+					std::string id_s;
+					for (int i = 2; i < iResult; i++) {
+						if (recvbuf[i] == ' ')
+							break;
+						id_s.push_back(recvbuf[i]);
+					}
+					int id = std::stoi(id_s);
+					user_data.id = id;
+					std::cout << "Logged!" << std::endl;
+					continue;
+				}
+				else {
+					for (int i = 2; i < iResult; i++) {
+						recvbuf[i - 2] = recvbuf[i];
+					}
+					iResult -= 2;
+					// Reset user data
+					user_data = {};
+				}
+			}
+
 			for (int i = 0; i < iResult; i++) {
 				std::cout << recvbuf[i];
 			}
 			std::cout << std::endl;
+
 		}
 		else if (iResult == 0)
 			std::cout << "Connection closed" << std::endl;
