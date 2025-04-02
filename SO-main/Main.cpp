@@ -130,10 +130,10 @@ int thread_func(int socket_id, SOCKET* client_socket, int max_buffer) {
 	int rec_result, send_result;
 	int recvbuflen = DEFAULT_BUFLEN;
 	int err;
-	assert(*client_socket != INVALID_SOCKET);
 	do {
 		for (char &ch : recvbuf)
 			ch = ' ';
+
 		rec_result = recv(*client_socket, recvbuf, recvbuflen, 0);
 		if (rec_result > 0) {
 			std::cout << "\nBytes recieved from " << socket_id << ": " << rec_result << std::endl;
@@ -141,18 +141,12 @@ int thread_func(int socket_id, SOCKET* client_socket, int max_buffer) {
 			for (int i = 0; i < rec_result; i++) {
 				std::cout << recvbuf[i];
 			}std::cout << std::endl;
-			// Echo the buffer back to the sender
-			sendbuf[0] = 'E';
-			sendbuf[1] = 'C';
-			sendbuf[2] = 'H';
-			sendbuf[3] = 'O';
-			sendbuf[4] = ':';
-			sendbuf[5] = ' ';
 
-			for (int i = 0; i < rec_result; i++) 
-				sendbuf[i + 6] = recvbuf[i];
-
-			send_result = send(*client_socket, sendbuf, rec_result + 6, 0);
+			int sendbuflen = so::decode_signal(recvbuf, rec_result, sendbuf);
+			if (sendbuflen == -1) {
+				break;
+			}
+			send_result = send(*client_socket, sendbuf, sendbuflen, 0);
 			if (send_result == SOCKET_ERROR) {
 				std::cout << "Send failed: " << WSAGetLastError() << std::endl;
 				closesocket(*client_socket);
