@@ -19,8 +19,14 @@ namespace so {
 				int option;
 				std::string x;
 				std::cout << "Warehouse/Chat server. Select one of the options below:\n";
-				std::cout << "1. Get server time\n2. Echo message\n";
-				std::cout << "\n10. Login\n";
+				std::cout << "1. Get server time\n2. Echo message\n3. User input\n";
+				if (data->logged)
+					std::cout << "\n10. Logoff\n";
+				else
+					std::cout << "\n10. Login\n";
+				if (data->type == USER_TYPE::Quartermaster || data->type == USER_TYPE::Admin) {
+					std::cout << "11. Read storage data\n12. Return item\n";
+				}
 				if (data->type == USER_TYPE::Admin) {
 					std::cout << "\n100. Kill Server\n";
 				}
@@ -33,12 +39,26 @@ namespace so {
 				case 2:
 					x = user_input();
 					return "echo " + x;
+				case 3:
+					return user_input();
 				case 10:
-					x = login(data);
-					*word += 1;
-					return "login " + x;
+					if (data->logged) {
+						int id = data->id;
+						*data = User();
+						return "logoff " + std::to_string(id);
+					}
+					else {
+						x = login(data);
+						*word += 1;
+						return "login " + x;
+					}
+				case 11:
+					if (data->type == USER_TYPE::Quartermaster || data->type == USER_TYPE::Admin) {
+						*word += 2;
+						return "get storage all";
+					}
 				case 0:
-					return "exit";
+					return "exit " + std::to_string(data->id);
 
 				// Admin
 				case 100:

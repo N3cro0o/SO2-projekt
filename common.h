@@ -10,12 +10,13 @@ namespace so {
 
 	struct User {
 		// Add serialization to file, sometime in the future kek
-		int id = 0;
+		int id = -1;
 		std::string name = "User-client";
 		USER_TYPE type = USER_TYPE::Delivery;
+		bool logged = false;
 	};
 
 	void print_user(User* data) {
-		std::cout << "ID " << data->id << " Username " << data->name << " Type " << data->type << std::endl;
+		std::cout << "ID " << data->id << " Username " << data->name << " Type " << data->type << " Logged: " << data->logged << std::endl;
 	}
 }

@@ -10,7 +10,11 @@
 
 #define SOCKET_PORT "9999"
 #define DEFAULT_BUFLEN 1024
-
+/// <summary>
+/// Controll word used for loops and checks. Bits:
+/// 0. Login check
+/// 1. Logged state
+/// </summary>
 int controll_word = 0;
 so::User user_data;
 
@@ -21,11 +25,11 @@ int main() {
 	WORD ver_req = MAKEWORD(2, 2);
 	wsa_err = WSAStartup(ver_req, &wsaData);
 	if (wsa_err != 0) {
-		std::cout << "Dll not found";
+		std::cout << "[INFO] Dll not found";
 		return 1;
 	}
-	std::cout << "Dll was found!" << std::endl;
-	std::cout << "Status: " << wsaData.szSystemStatus << std::endl;
+	std::cout << "[INFO] Dll was found!" << std::endl;
+	std::cout << "[INFO] Status: " << wsaData.szSystemStatus << std::endl;
 
 	// Chceck Addr
 	struct addrinfo* result = NULL, * ptr = NULL, hints;
@@ -38,22 +42,22 @@ int main() {
 	// Resolve the local address and port to be used by the client
 	wsa_err = getaddrinfo("127.0.0.1", SOCKET_PORT, &hints, &result);
 	if (wsa_err != 0) {
-		std::cout << "Getaddrinfo failed: " << wsa_err << std::endl;
+		std::cout << "[INFO] Getaddrinfo failed: " << wsa_err << std::endl;
 		WSACleanup();
 		return 1;
 	}
-	std::cout << "Got address" << std::endl;
+	std::cout << "[INFO] Got address" << std::endl;
 
 	// Socket
 	ptr = result;
 	connect_socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
 	if (connect_socket == INVALID_SOCKET) {
-		std::cout << "Invalid server socket " << WSAGetLastError() << std::endl;
+		std::cout << "[INFO] Invalid server socket " << WSAGetLastError() << std::endl;
 		freeaddrinfo(result);
 		WSACleanup();
 		return -1;
 	}
-	std::cout << "Socket ready" << std::endl;
+	std::cout << "[INFO] Socket ready" << std::endl;
 
 	// Connect to server. Try the next address returned by getaddrinfo if failed
 	wsa_err = connect(connect_socket, ptr->ai_addr, (int)ptr->ai_addrlen);
@@ -63,7 +67,7 @@ int main() {
 	}
 	freeaddrinfo(result);
 	if (connect_socket == INVALID_SOCKET) {
-		std::cout << "Unable to connect to server!" << std::endl;
+		std::cout << "[INFO] Unable to connect to server!" << std::endl;
 		WSACleanup();
 		return 1;
 	}
@@ -75,6 +79,10 @@ int main() {
 	int recvbuflen = DEFAULT_BUFLEN;
 	int iResult;
 	do {
+		// Reset controll word
+		if ((controll_word & (1 << 0) >> 0) == 1)
+			controll_word -= 1;
+
 		// Get user input
 		controll_word = 0;
 		int sendbuflen = 0;
@@ -85,18 +93,18 @@ int main() {
 		// Send buffer
 		iResult = send(connect_socket, sendbuf, (int)strlen(sendbuf), 0);
 		if (iResult == SOCKET_ERROR) {
-			std::cout << "Send failed: " << WSAGetLastError() << std::endl;
+			std::cout << "[INFO] Send failed: " << WSAGetLastError() << std::endl;
 			closesocket(connect_socket);
 			WSACleanup();
 			return 1;
 		}
-		std::cout << "Bytes sent: " << iResult << std::endl;
+		std::cout << "[INFO] Bytes sent: " << iResult << std::endl;
 
 		// Wait for echo
 		iResult = recv(connect_socket, recvbuf, recvbuflen, 0);
 		if (iResult > 0) {
-			std::cout << "Bytes recieved: " << iResult << std::endl;
-			std::cout << "Message: " << std::endl;
+			std::cout << "[INFO] Bytes recieved: " << iResult << std::endl;
+			std::cout << "[INFO] Message: " << std::endl;
 
 			// Check controll word
 			// Login check
@@ -111,6 +119,7 @@ int main() {
 					}
 					int id = std::stoi(id_s);
 					user_data.id = id;
+					user_data.logged = true;
 					std::cout << "Logged!" << std::endl;
 					continue;
 				}
@@ -123,7 +132,29 @@ int main() {
 					user_data = {};
 				}
 			}
-
+			while ((controll_word & (1 << 1)) >> 1 == 1) {
+				bool chk = false;
+				std::string s = "stop";
+				for (int i = 0; i < 4; i++) {
+					if (recvbuf[i] != s[i]) {
+						chk = true;
+						break;
+					}
+				}
+				if (!chk) {
+					controll_word -= 2;
+					break;
+				}
+				else {
+					for (int i = 0; i < iResult; i++) {
+						std::cout << recvbuf[i];
+					}
+					std::cout << std::endl;
+					const char* sendbuf_new = ".";
+					send(connect_socket, sendbuf_new, (int)strlen(sendbuf_new), 0);
+					iResult = recv(connect_socket, recvbuf, recvbuflen, 0);
+				}
+			}
 			for (int i = 0; i < iResult; i++) {
 				std::cout << recvbuf[i];
 			}
@@ -131,16 +162,17 @@ int main() {
 
 		}
 		else if (iResult == 0)
-			std::cout << "Connection closed" << std::endl;
+			std::cout << "[INFO] Connection closed" << std::endl;
 		else
-			std::cout << "Connection failed: " << WSAGetLastError() << std::endl;
-	} while (in != "exit");
+			std::cout << "[INFO] Connection failed: " << WSAGetLastError() << std::endl;
+
+	} while (in.substr(0, 4) != "exit");
 
 	// shutdown the connection for sending since no more data will be sent
 	// the client can still use the ConnectSocket for receiving data
 	iResult = shutdown(connect_socket, SD_SEND);
 	if (iResult == SOCKET_ERROR) {
-		std::cout << "Shutdown failed: " << WSAGetLastError() << std::endl;
+		std::cout << "[INFO] Shutdown failed: " << WSAGetLastError() << std::endl;
 		closesocket(connect_socket);
 		WSACleanup();
 		return 1;
@@ -150,13 +182,13 @@ int main() {
 	do {
 		iResult = recv(connect_socket, recvbuf, recvbuflen, 0);
 		if (iResult > 0) {
-			std::cout << "Bytes recieved: " << iResult << std::endl;
+			std::cout << "[INFO] Bytes recieved: " << iResult << std::endl;
 			std::cout << "Message: " << recvbuf << std::endl;
 		}
 		else if (iResult == 0)
-			std::cout << "Connection closed" << std::endl;
+			std::cout << "[INFO] Connection closed" << std::endl;
 		else
-			std::cout << "Connection failed: " << WSAGetLastError() << std::endl;
+			std::cout << "[INFO] Connection failed: " << WSAGetLastError() << std::endl;
 	} while (iResult > 0);
 
 	// DC from client
