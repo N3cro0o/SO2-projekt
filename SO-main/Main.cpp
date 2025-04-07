@@ -13,7 +13,7 @@
 
 #define SOCKET_PORT "9999"
 #define DEFAULT_BUFLEN 1024
-#define MAX_CLIENT_SOCKETS 5
+#define MAX_CLIENT_SOCKETS 20
 
 #include"../common.h"
 #include"main.h"
@@ -38,10 +38,6 @@ int main() {
 	// Create admin
 	so::User admin = { 0, "Admin", so::USER_TYPE::Admin, false };
 	user_data_vec.push_back(admin);
-	// Storage dummy text
-	storage.insert({ "cos", 5 });
-	storage.insert({ "lorem ipsum", 12 });
-	storage.insert({ "dolor sit amet", 2137 });
 
 	SOCKET server_socket = INVALID_SOCKET;
 	WSADATA wsaData;
@@ -171,14 +167,16 @@ int thread_func(int socket_id, SOCKET* client_socket, int max_buffer) {
 			std::cout << "Message: " << std::endl;
 			for (int i = 0; i < rec_result; i++) {
 				std::cout << recvbuf[i];
-			}std::cout << std::endl;
+			}
+			std::cout << std::endl;
 
-			int sendbuflen = so::decode_signal(recvbuf, rec_result, sendbuf, &user_data_vec, user_mutex);
+			int sendbuflen = so::decode_signal(recvbuf, rec_result, sendbuf, &user_data_vec, user_mutex, &storage, storage_mutex);
 			if (sendbuflen == -1) {
 				break;
 			}
 			if (sendbuflen == -10) {
 				// Flash buffers
+				storage_mutex.lock();
 				for (auto const& data : storage) {
 					for (char& ch : recvbuf)
 						ch = ' ';
@@ -198,12 +196,14 @@ int thread_func(int socket_id, SOCKET* client_socket, int max_buffer) {
 					if (send_result == SOCKET_ERROR) {
 						std::cout << "[INFO] Send failed: " << WSAGetLastError() << std::endl;
 						closesocket(*client_socket);
+						storage_mutex.unlock();
 						return 1;
 					}
 					std::cout << "[INFO] Bytes sent to " << socket_id << ": " << send_result << std::endl;
 					rec_result = recv(*client_socket, recvbuf, recvbuflen, 0);
 				}
 				// Stop sending data
+				storage_mutex.unlock();
 				std::string end = "stop";
 				for (int i = 0; i < end.size(); i++) {
 					sendbuf[i] = end[i];

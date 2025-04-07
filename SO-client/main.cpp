@@ -4,12 +4,14 @@
 #include<windows.h>
 #include<stdio.h>
 #include<string>
+#include<vector>
 
 #include"../common.h"
 #include "menu.h"
 
 #define SOCKET_PORT "9999"
 #define DEFAULT_BUFLEN 1024
+#define MEMO_VEC std::vector<std::pair<std::string, int>>
 /// <summary>
 /// Controll word used for loops and checks. Bits:
 /// 0. Login check
@@ -17,6 +19,7 @@
 /// </summary>
 int controll_word = 0;
 so::User user_data;
+MEMO_VEC memo_vec;
 
 int main() {
 	SOCKET connect_socket = INVALID_SOCKET, user_accept = INVALID_SOCKET;
@@ -86,8 +89,7 @@ int main() {
 		// Get user input
 		controll_word = 0;
 		int sendbuflen = 0;
-		in = so::menu::menu_loop(&user_data, &controll_word);
-		so::print_user(&user_data);
+		in = so::menu::menu_loop(&user_data, &controll_word, &memo_vec);
 		const char* sendbuf = in.c_str();
 
 		// Send buffer

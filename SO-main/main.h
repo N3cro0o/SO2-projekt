@@ -4,6 +4,7 @@
 #include<windows.h>
 #include<chrono>
 #include<vector>
+#include<map>
 #include<string>
 
 #include<mutex>
@@ -16,7 +17,9 @@ namespace so {
 	std::string login(std::vector<User>* user_vec, User data);
 	std::string get_time();
 
-	int decode_signal(char(&in_buff)[DEFAULT_BUFLEN], int in_size, char(&out_buff)[DEFAULT_BUFLEN], std::vector<User>* user_vec, std::mutex &user_m) {
+	int decode_signal(char(&in_buff)[DEFAULT_BUFLEN], int in_size, char(&out_buff)[DEFAULT_BUFLEN], std::vector<User>* user_vec, std::mutex &user_m,
+		std::map<std::string, int> * storage, std::mutex & storage_mutex) 
+	{
 		std::vector<std::string> decoded_vec = get_words(in_buff, in_size);
 		std::string mess = "";
 
@@ -43,6 +46,31 @@ namespace so {
 				if (decoded_vec[2] == "all") {
 					return -10;
 				}
+			}
+		}
+		else if (decoded_vec[0] == "storage") {
+			if (decoded_vec.size() < 4)
+				mess = "Invalid number of arguments";
+			else {
+				storage_mutex.lock();
+				if (decoded_vec[1] == "add") {
+					std::string item = decoded_vec[2];
+					int num = std::stoi(decoded_vec[3]);
+					(*storage)[item] += num;
+					mess = "Added " + item + " to storage";
+				}
+				else if (decoded_vec[1] == "remove") {
+					std::string item = decoded_vec[2];
+					int num = std::stoi(decoded_vec[3]);
+					int storage_num = (*storage)[item];
+					if (storage_num < num)
+						mess = "Storage does not have enough " + item;
+					else {
+						(*storage)[item] -= num;
+						mess = "Removed " + item + " from storage";
+					}
+				}
+				storage_mutex.unlock();
 			}
 		}
 		else if (decoded_vec[0] == "echo")
@@ -116,8 +144,14 @@ namespace so {
 		std::vector<std::string> out;
 		std::string buffer = "";
 		int id = 0;
-		while (id < size)
-			if (in_buff[id] == ' ' && buffer.size() != 0) {
+		bool quote_check = false;
+		while (id < size) {
+			if (in_buff[id] == '\"') {
+				quote_check = !quote_check;
+				id++;
+				continue;
+			}
+			if ((in_buff[id] == ' ' && !quote_check) && buffer.size() != 0) {
 				out.push_back(buffer);
 				buffer.clear();
 				id++;
@@ -126,6 +160,7 @@ namespace so {
 			else {
 				buffer.push_back(in_buff[id++]);
 			}
+		}
 		out.push_back(buffer);
 		return out;
 	}
