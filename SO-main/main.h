@@ -8,6 +8,7 @@
 #include<string>
 
 #include<mutex>
+#include<semaphore>
 
 // Update to module, someday
 
@@ -18,7 +19,7 @@ namespace so {
 	std::string get_time();
 
 	int decode_signal(char(&in_buff)[DEFAULT_BUFLEN], int in_size, char(&out_buff)[DEFAULT_BUFLEN], std::vector<User>* user_vec, std::mutex &user_m,
-		std::map<std::string, int> * storage, std::mutex & storage_mutex) 
+		std::map<std::string, int> * storage, std::binary_semaphore & storage_semaphore) 
 	{
 		std::vector<std::string> decoded_vec = get_words(in_buff, in_size);
 		std::string mess = "";
@@ -52,7 +53,7 @@ namespace so {
 			if (decoded_vec.size() < 4)
 				mess = "Invalid number of arguments";
 			else {
-				storage_mutex.lock();
+				storage_semaphore.acquire();
 				if (decoded_vec[1] == "add") {
 					std::string item = decoded_vec[2];
 					int num = std::stoi(decoded_vec[3]);
@@ -70,7 +71,7 @@ namespace so {
 						mess = "Removed " + item + " from storage";
 					}
 				}
-				storage_mutex.unlock();
+				storage_semaphore.release();
 			}
 		}
 		else if (decoded_vec[0] == "echo")

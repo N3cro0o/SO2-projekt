@@ -9,7 +9,10 @@
 
 #include<thread>
 #include<mutex>
+#include<semaphore>
 #include<atomic>
+
+// readme
 
 #define SOCKET_PORT "9999"
 #define DEFAULT_BUFLEN 1024
@@ -29,6 +32,7 @@ std::map<std::string, int> storage;
 std::mutex thread_mutex;
 std::mutex user_mutex;
 std::mutex storage_mutex;
+std::binary_semaphore storage_semaph;
 std::atomic_bool server_loop = true;
 
 int thread_func(int socket_id, SOCKET* client_socket, int max_buffer);
@@ -170,7 +174,7 @@ int thread_func(int socket_id, SOCKET* client_socket, int max_buffer) {
 			}
 			std::cout << std::endl;
 
-			int sendbuflen = so::decode_signal(recvbuf, rec_result, sendbuf, &user_data_vec, user_mutex, &storage, storage_mutex);
+			int sendbuflen = so::decode_signal(recvbuf, rec_result, sendbuf, &user_data_vec, user_mutex, &storage, storage_semaph);
 			if (sendbuflen == -1) {
 				break;
 			}
