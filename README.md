@@ -14,11 +14,11 @@ Komunikacja serwer-klient wykonywana jest w funkcji `int thread_func(int socket_
 Klient na początku pracy przygotowuje środowisko i wykonuję startową inicjalizację po czym wysyła żądanie połączenia się z serwerem na wcześniej wyznaczonym porcie oraz adresie IP. Po otrzymaniu informacji o zaakceptowaniu połączenia, aplikacja pokazuje menu wyboru możliwych opcji oraz pozwala użytkownikowi na wybór opcji oraz na wprowadzenie niezbędnych danych poprzez okno konsoli. Po otrzymaniu pełnego polecenia, aplikacja-klient wysyła komunikat do serwera oraz oczekuje na wiadomość zwrotną, która albo jest przetwarzana i pokazywana w oknie terminala albo aplikacja przechodzi w odpowidni tryb pracy do otrzymania polecenia zakończenia. Pętla jest przerywana wtedy i tylko wtedy gdy otrzymany zostanie pusty komunikat (komunikat o długości 0), po którym aplikacja kończy aktualne procesy oraz wyłącza się.
 ### Opis ról
 Środowisko pozwala użytkownikowi na stworzenie konta oraz na zalogowanie się do systemu, co pozwala na zarządzanie składem magazynu oraz, jeżeli użytkownik zaloguje się jako Admin, na manipulowanie pracą serwera oraz środowiska. Poniżej znajduje się krótki opis każdej z istniejących ról
-* Admin
+* Admin - 
 	Ma pełny dostęp do środowika oraz ma wgląd do składu magazynu. Wszystkie opcje wyboru dostawcy oraz kwatermistrza są mu przypisane i dodatkowo ma możliwość zdalnie wyłączyć aplikację-serwer.
-* Dostawca
+* Dostawca -
 	Ma wgląd do składu magazynu. Jego główną rolą jest dostarczanie nowych przedmiotów do magazynu
-* Kwatermistrz/Magazynier
+* Kwatermistrz/Magazynier -
 	Ma wgląd do składu magazynu. Jego główną rolą jest wyciąganie (usuwanie) przedmiotów ze składu. Dodatkowo ma możliwość na dokonanie zwrotu, który polega na wybraniu jedej z operacji zapisanych w historii użytkownika oraz na dodaniu takiej samej liczby wybranego produktu do magazynu.
 ## Użyte technologie
 * **Winsock2** - Komunikacja na bazie portów oraz protolołu TCP/IP
