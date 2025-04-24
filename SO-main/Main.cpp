@@ -12,8 +12,6 @@
 #include<semaphore>
 #include<atomic>
 
-// readme
-
 #define SOCKET_PORT "9999"
 #define DEFAULT_BUFLEN 1024
 #define MAX_CLIENT_SOCKETS 20
@@ -32,7 +30,7 @@ std::map<std::string, int> storage;
 std::mutex thread_mutex;
 std::mutex user_mutex;
 std::mutex storage_mutex;
-std::binary_semaphore storage_semaph;
+std::binary_semaphore storage_semaph{0};
 std::atomic_bool server_loop = true;
 
 int thread_func(int socket_id, SOCKET* client_socket, int max_buffer);
